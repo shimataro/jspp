@@ -1,7 +1,7 @@
 jspp
 ======
 
-C-like JavaScript Preprocessor Parser.
+C-like JavaScript Preprocessor.
 It enables to include other file into JavaScript file, like C preprocessor `#include`.
 And can combine multiple JavaScript files into one easily.
 

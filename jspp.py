@@ -1,6 +1,6 @@
 #!/usr/bin/python2.7
 # coding: utf-8
-""" JavaScript Preprocessor Parser
+""" JavaScript Preprocessor
 
 format:
 $ jspp [options]
@@ -28,7 +28,7 @@ def main():
 
         file_in, file_out = get_inout(options)
         with file_in, file_out:
-            parse_file(file_in, file_out, options["semicolon"])
+            parse_file(file_in, file_out, options)
 
         return EXIT_SUCCESS
 
@@ -100,38 +100,55 @@ def get_inout(options):
         raise
 
 
-def parse_file(file_in, file_out, semicolon = False):
+def parse_file(file_in, file_out, options):
     """ parse file and output result
 
     @param file_in: input file object
     @param file_out: output file object
-    @param semicolon: add semicolon after include-file
+    @param options: options
     @raise: IOError
     """
     for line in file_in:
-        # check preprocessor
-        m = re_include.match(line)
-        if not m:
-            # no match
-            file_out.write(line)
-            continue;
+        if parse_include(line, file_in, file_out, options):
+            continue
 
-        # save current directory
-        curdir = os.getcwd()
+        file_out.write(line)
 
-        # recursive call!
-        filename = m.group(1)
-        with open(filename, "r") as file_in_new:
-            dirname = os.path.dirname(filename)
-            if dirname != "":
-                os.chdir(dirname)
 
-            parse_file(file_in_new, file_out, semicolon)
-            if semicolon:
-                file_out.write(";\n")
+def parse_include(line, file_in, file_out, options):
+    """ parse "include" directive
 
-        # restore current directory
-        os.chdir(curdir)
+    @param line: current line
+    @param file_in: input file object
+    @param file_out: output file object
+    @param options: options
+    @raise: IOError
+    """
+    m = re_include.match(line)
+    if not m:
+        # no match
+        return False
+    
+    # save current directory
+    curdir = os.getcwd()
+    
+    # recursive call!
+    filename = m.group(1)
+    with open(filename, "r") as file_in_new:
+        dirname = os.path.dirname(filename)
+        if dirname != "":
+            os.chdir(dirname)
+    
+        parse_file(file_in_new, file_out, options)
+    
+    # output semicolon
+    if options["semicolon"]:
+        file_out.write(";\n")
+    
+    # restore current directory
+    os.chdir(curdir)
+
+    return True
 
 
 def print_err(message):
