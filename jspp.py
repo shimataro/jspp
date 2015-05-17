@@ -6,6 +6,7 @@ format:
 $ jspp [options]
 
 options:
+    -s|--semicolon
     -i|--input <input-filename>
     -o|--output <output-filename>
 """
@@ -27,7 +28,7 @@ def main():
 
         file_in, file_out = get_inout(options)
         with file_in, file_out:
-            parse_file(file_in, file_out)
+            parse_file(file_in, file_out, options["semicolon"])
 
         return EXIT_SUCCESS
 
@@ -48,9 +49,16 @@ def parse_args():
     @return: parse result
     @raise: getopt.GetoptError
     """
-    opts, args = getopt.getopt(sys.argv[1:], "i:o:", ["input=", "output="])
-    options = {}
+    opts, args = getopt.getopt(sys.argv[1:], "si:o:", ["semicolon", "input=", "output="])
+    options = {
+        "semicolon": False,
+    }
     for o, a in opts:
+        if o in ("-s", "--semicolon"):
+            # add semicolon
+            options["semicolon"] = True
+            continue
+
         if o in ("-i", "--input"):
             # input file
             options["input" ] = a
@@ -92,11 +100,12 @@ def get_inout(options):
         raise
 
 
-def parse_file(file_in, file_out):
+def parse_file(file_in, file_out, semicolon = False):
     """ parse file and output result
 
     @param file_in: input file object
     @param file_out: output file object
+    @param semicolon: add semicolon after include-file
     @raise: IOError
     """
     for line in file_in:
@@ -117,7 +126,9 @@ def parse_file(file_in, file_out):
             if dirname != "":
                 os.chdir(dirname)
 
-            parse_file(file_in_new, file_out)
+            parse_file(file_in_new, file_out, semicolon)
+            if semicolon:
+                file_out.write(";\n")
 
         # restore current directory
         os.chdir(curdir)

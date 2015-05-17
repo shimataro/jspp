@@ -36,6 +36,10 @@ b = 2;
 
 ## Command line options
 
+* `-s`, `--semicolon`
+
+Add semicolon after include-file.
+
 * `-i <input-filename>`, `--input <input-filename>`
 
 Specify input filename.
