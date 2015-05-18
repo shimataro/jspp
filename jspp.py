@@ -13,6 +13,9 @@ options:
 import os, sys, re, getopt
 re_include = re.compile(r"^\s*//\s*#include\s+\"(.+)\"\s*$")
 
+# max depth of "include" (for recursive inclusion)
+MAX_DEPTH_INCLUDE = 100
+
 # status code
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
@@ -31,6 +34,10 @@ def main():
             parse_file(file_in, file_out, options)
 
         return EXIT_SUCCESS
+
+    except JsppError as err:
+        print_err(err.message)
+        return err.code
 
     except getopt.GetoptError as err:
         # option error
@@ -52,6 +59,7 @@ def parse_args():
     opts, args = getopt.getopt(sys.argv[1:], "si:o:", ["semicolon", "input=", "output="])
     options = {
         "semicolon": False,
+        "include_depth": 0,
     }
     for o, a in opts:
         if o in ("-s", "--semicolon"):
@@ -128,26 +136,32 @@ def parse_include(line, file_in, file_out, options):
     if not m:
         # no match
         return False
-    
+
+    if options["include_depth"] >= MAX_DEPTH_INCLUDE:
+        raise JsppError("#include reached to max depth")
+
+    options["include_depth"] += 1
+
     # save current directory
     curdir = os.getcwd()
-    
+
     # recursive call!
     filename = m.group(1)
     with open(filename, "r") as file_in_new:
         dirname = os.path.dirname(filename)
         if dirname != "":
             os.chdir(dirname)
-    
+
         parse_file(file_in_new, file_out, options)
-    
+
     # output semicolon
     if options["semicolon"]:
         file_out.write(";\n")
-    
+
     # restore current directory
     os.chdir(curdir)
 
+    options["include_depth"] -= 1
     return True
 
 
@@ -158,6 +172,13 @@ def print_err(message):
     """
     sys.stderr.write(message)
     sys.stderr.write("\n")
+
+
+class JsppError(Exception):
+    """ JSPP particular error """
+    def __init__(self, message, code = EXIT_FAILURE):
+        self.code = code
+        self.message = message
 
 
 if __name__ == "__main__":
