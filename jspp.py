@@ -199,6 +199,7 @@ def parse_ifdef(line, file_in, file_out, file_null, options):
     @param file_out: output file object
     @param file_null: null-device object
     @param options: options
+    @return: processed #ifdef or not
     @raise: IOError
     """
     m = re_ifdef.match(line)
@@ -225,6 +226,7 @@ def parse_ifndef(line, file_in, file_out, file_null, options):
     @param file_out: output file object
     @param file_null: null-device object
     @param options: options
+    @return: processed #ifndef or not
     @raise: IOError
     """
     m = re_ifndef.match(line)
@@ -251,6 +253,7 @@ def parse_endif(line, file_in, file_out, file_null, options):
     @param file_out: output file object
     @param file_null: null-device object
     @param options: options
+    @raise: JsppError
     """
     m = re_endif.match(line)
     if not m:
@@ -259,6 +262,7 @@ def parse_endif(line, file_in, file_out, file_null, options):
 
     options["depth_if"] -= 1
     if options["depth_if"] < 0:
+        # too many endif
         raise JsppError(JsppError.EX_IF_NOMATCH, "#if(n)def - #endif not matched")
 
     return True
