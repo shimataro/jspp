@@ -11,14 +11,18 @@ options:
     -i|--input <input-filename>
     -o|--output <output-filename>
 """
-import os, sys, re, getopt
+import os
+import sys
+import re
+import getopt
 re_include = re.compile(r"^\s*//\s*#include\s+\"(.+)\"\s*$")
-re_ifdef   = re.compile(r"^\s*//\s*#ifdef\s+(\w+)\s*$")
-re_ifndef  = re.compile(r"^\s*//\s*#ifndef\s+(\w+)\s*$")
-re_endif   = re.compile(r"^\s*//\s*#endif\s*$")
+re_ifdef = re.compile(r"^\s*//\s*#ifdef\s+(\w+)\s*$")
+re_ifndef = re.compile(r"^\s*//\s*#ifndef\s+(\w+)\s*$")
+re_endif = re.compile(r"^\s*//\s*#endif\s*$")
 
 # max depth of "include" (for recursive inclusion)
 MAX_DEPTH_INCLUDE = 100
+
 
 def main():
     """ main function """
@@ -31,7 +35,8 @@ def main():
             parse_file(file_in, file_out, file_null, options)
 
         if options["depth_if"] != 0:
-            raise JsppError(JsppError.EX_IF_NOMATCH, "#if(n)def - #endif not matched")
+            raise JsppError(
+                JsppError.EX_IF_NOMATCH, "#if(n)def - #endif not matched")
 
         return os.EX_OK
 
@@ -46,7 +51,8 @@ def main():
 
     except IOError as err:
         # file error
-        print_err("{message}: {filename}".format(message = err.strerror, filename = err.filename))
+        print_err("{message}: {filename}".format(
+            message=err.strerror, filename=err.filename))
         return os.EX_IOERR
 
 
@@ -56,7 +62,11 @@ def parse_args():
     @return: parse result
     @raise: getopt.GetoptError
     """
-    opts, args = getopt.getopt(sys.argv[1:], "sd:i:o:", ["semicolon", "define=", "input=", "output="])
+    opts, args = getopt.getopt(
+        sys.argv[1:],
+        "sd:i:o:",
+        ["semicolon", "define=", "input=", "output="])
+
     options = {
         "semicolon": False,
         "defined": {},
@@ -77,7 +87,7 @@ def parse_args():
 
         if o in ("-i", "--input"):
             # input file
-            options["input" ] = a
+            options["input"] = a
             continue
 
         if o in ("-o", "--output"):
@@ -96,12 +106,12 @@ def get_inout(options):
     @raise: IOError
     """
     # open files
-    file_in   = sys.stdin
-    file_out  = sys.stdout
+    file_in = sys.stdin
+    file_out = sys.stdout
     file_null = sys.stdout
     try:
-        if "input"  in options:
-            file_in  = open(options["input"] , "r")
+        if "input" in options:
+            file_in = open(options["input"], "r")
             dirname = os.path.dirname(options["input"])
             if dirname != "":
                 os.chdir(dirname)
@@ -164,7 +174,8 @@ def parse_include(line, file_in, file_out, file_null, options):
         return False
 
     if options["depth_include"] >= MAX_DEPTH_INCLUDE:
-        raise JsppError(JsppError.EX_MAX_INCLUDES_DEPTH, "#include reached to max depth")
+        raise JsppError(
+            JsppError.EX_MAX_INCLUDES_DEPTH, "#include reached to max depth")
 
     options["depth_include"] += 1
 
@@ -263,7 +274,8 @@ def parse_endif(line, file_in, file_out, file_null, options):
     options["depth_if"] -= 1
     if options["depth_if"] < 0:
         # too many endif
-        raise JsppError(JsppError.EX_IF_NOMATCH, "#if(n)def - #endif not matched")
+        raise JsppError(
+            JsppError.EX_IF_NOMATCH, "#if(n)def - #endif not matched")
 
     return True
 
