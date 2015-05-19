@@ -2,8 +2,7 @@ jspp
 ======
 
 C-like JavaScript Preprocessor.
-It enables to include other file into JavaScript file, like C preprocessor `#include`.
-And can combine multiple JavaScript files into one easily.
+It can combine multiple JavaScript files into one easily.
 
 ## Requires
 
@@ -11,7 +10,7 @@ And can combine multiple JavaScript files into one easily.
 
 ## How to use
 
-`//#include "filename"` will be replaced with the target filename.
+### `//#include "filename"` will be replaced with the target filename.
 
 base.js
 ```js
@@ -34,11 +33,39 @@ y = 2;
 b = 2;
 ```
 
+### `//#if(n)def SYMBOL` - `//#endif` will remain if `SYMBOL` is (not) defined by `-d` option.
+
+base.js
+```js
+a = 1;
+//#ifdef ABC
+b = 2;
+//#endif
+c = 3;
+```
+
+python jspp.py \<base.js
+```js
+a = 1;
+c = 3;
+```
+
+python jspp.py \<base.js -d ABC
+```js
+a = 1;
+b = 2;
+c = 3;
+```
+
 ## Command line options
 
 * `-s`, `--semicolon`
 
 Add semicolon after include-file.
+
+* `-d <symbol>`, `--define <symbol>`
+
+Define symbol for `//#ifdef` or `//#ifndef`.
 
 * `-i <input-filename>`, `--input <input-filename>`
 
