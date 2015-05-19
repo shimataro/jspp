@@ -16,13 +16,6 @@ re_include = re.compile(r"^\s*//\s*#include\s+\"(.+)\"\s*$")
 # max depth of "include" (for recursive inclusion)
 MAX_DEPTH_INCLUDE = 100
 
-# status code
-EXIT_SUCCESS = 0
-EXIT_FAILURE = 1
-# http://www.freebsd.org/cgi/man.cgi?query=sysexits
-EX_USAGE = 64
-EX_IOERR = 74
-
 def main():
     """ main function """
     try:
@@ -33,21 +26,21 @@ def main():
         with file_in, file_out:
             parse_file(file_in, file_out, options)
 
-        return EXIT_SUCCESS
+        return os.EX_OK
 
     except JsppError as err:
         print_err(err.message)
-        return err.code
+        return err.status
 
     except getopt.GetoptError as err:
         # option error
         print_err(err.msg)
-        return EX_USAGE
+        return os.EX_USAGE
 
     except IOError as err:
         # file error
         print_err("{message}: {filename}".format(message = err.strerror, filename = err.filename))
-        return EX_IOERR
+        return os.EX_IOERR
 
 
 def parse_args():
@@ -114,6 +107,7 @@ def parse_file(file_in, file_out, options):
     @param file_in: input file object
     @param file_out: output file object
     @param options: options
+    @raise: JsppError
     @raise: IOError
     """
     for line in file_in:
@@ -130,6 +124,8 @@ def parse_include(line, file_in, file_out, options):
     @param file_in: input file object
     @param file_out: output file object
     @param options: options
+    @return: processed #include or not
+    @raise: JsppError
     @raise: IOError
     """
     m = re_include.match(line)
@@ -138,7 +134,7 @@ def parse_include(line, file_in, file_out, options):
         return False
 
     if options["include_depth"] >= MAX_DEPTH_INCLUDE:
-        raise JsppError("#include reached to max depth")
+        raise JsppError(JsppError.EX_MAX_INCLUDES_DEPTH, "#include reached to max depth")
 
     options["include_depth"] += 1
 
@@ -166,7 +162,7 @@ def parse_include(line, file_in, file_out, options):
 
 
 def print_err(message):
-    """ output message (and linefeed) to stdout
+    """ output message (and linefeed) to stderr
 
     @param message: message to be output
     """
@@ -176,8 +172,11 @@ def print_err(message):
 
 class JsppError(Exception):
     """ JSPP particular error """
-    def __init__(self, message, code = EXIT_FAILURE):
-        self.code = code
+    # exit status
+    EX_MAX_INCLUDES_DEPTH = 2
+
+    def __init__(self, status, message):
+        self.status = status
         self.message = message
 
 
