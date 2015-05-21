@@ -15,6 +15,8 @@ import os
 import sys
 import re
 import getopt
+
+# directive patterns
 re_include = re.compile(r"^\s*//\s*#include\s+\"(.+)\"\s*$")
 re_ifdef = re.compile(r"^\s*//\s*#ifdef\s+(\w+)\s*$")
 re_ifndef = re.compile(r"^\s*//\s*#ifndef\s+(\w+)\s*$")
@@ -30,9 +32,9 @@ def main():
         # parse options
         options = parse_args()
 
-        file_in, file_out, file_null = get_inout(options)
-        with file_in, file_out, file_null:
-            parse_file(file_in, file_out, file_null, options)
+        file_in, file_out = get_inout(options)
+        with file_in, file_out:
+            parse_file(file_in, file_out, options)
 
         if options["depth_if"] != 0:
             raise JsppError(
@@ -71,6 +73,7 @@ def parse_args():
         "semicolon": False,
         "defined": {},
 
+        "if_true": None,
         "depth_if": 0,
         "depth_include": 0,
     }
@@ -99,16 +102,15 @@ def parse_args():
 
 
 def get_inout(options):
-    """ get input/output/null objects
+    """ get input/output objects
 
     @param options: parse result
-    @return: input, output, null-device
+    @return: input, output
     @raise: IOError
     """
     # open files
     file_in = sys.stdin
     file_out = sys.stdout
-    file_null = sys.stdout
     try:
         if "input" in options:
             file_in = open(options["input"], "r")
@@ -119,50 +121,50 @@ def get_inout(options):
         if "output" in options:
             file_out = open(options["output"], "w")
 
-        file_null = open(os.devnull, "w")
-        return file_in, file_out, file_null
+        return file_in, file_out
 
     except:
-        file_in  .close()
-        file_out .close()
-        file_null.close()
+        file_in.close()
+        file_out.close()
         raise
 
 
-def parse_file(file_in, file_out, file_null, options):
+def parse_file(file_in, file_out, options):
     """ parse file and output result
 
     @param file_in: input file object
     @param file_out: output file object
-    @param file_null: null-device object
     @param options: options
     @raise: JsppError
     @raise: IOError
     """
     for line in file_in:
-        if parse_include(line, file_in, file_out, file_null, options):
+        if parse_include(line, file_in, file_out, options):
             continue
 
-        if parse_ifdef(line, file_in, file_out, file_null, options):
+        if parse_ifdef(line, file_in, file_out, options):
             continue
 
-        if parse_ifndef(line, file_in, file_out, file_null, options):
+        if parse_ifndef(line, file_in, file_out, options):
             continue
 
-        if parse_endif(line, file_in, file_out, file_null, options):
+        if parse_endif(line, file_in, file_out, options):
             # escape!
             return
+
+        if options["if_true"] == False:
+            # ignore this line
+            continue
 
         file_out.write(line)
 
 
-def parse_include(line, file_in, file_out, file_null, options):
+def parse_include(line, file_in, file_out, options):
     """ parse "include" directive
 
     @param line: current line
     @param file_in: input file object
     @param file_out: output file object
-    @param file_null: null-device object
     @param options: options
     @return: processed #include or not
     @raise: JsppError
@@ -172,6 +174,10 @@ def parse_include(line, file_in, file_out, file_null, options):
     if not m:
         # no match
         return False
+
+    if options["if_true"] == False:
+        # ignore
+        return True
 
     if options["depth_include"] >= MAX_DEPTH_INCLUDE:
         raise JsppError(
@@ -189,7 +195,7 @@ def parse_include(line, file_in, file_out, file_null, options):
         if dirname != "":
             os.chdir(dirname)
 
-        parse_file(file_in_new, file_out, file_null, options)
+        parse_file(file_in_new, file_out, options)
 
     # output semicolon
     if options["semicolon"]:
@@ -202,13 +208,12 @@ def parse_include(line, file_in, file_out, file_null, options):
     return True
 
 
-def parse_ifdef(line, file_in, file_out, file_null, options):
+def parse_ifdef(line, file_in, file_out, options):
     """ parse "ifdef" directive
 
     @param line: current line
     @param file_in: input file object
     @param file_out: output file object
-    @param file_null: null-device object
     @param options: options
     @return: processed #ifdef or not
     @raise: IOError
@@ -218,24 +223,24 @@ def parse_ifdef(line, file_in, file_out, file_null, options):
         # no match
         return False
 
+    options["if_true"] = False
     symbol = m.group(1)
-    if not symbol in options["defined"]:
-        # not defined!
-        file_out = file_null
+    if symbol in options["defined"]:
+        # defined!
+        options["if_true"] = True
 
     # recursive call!
     options["depth_if"] += 1
-    parse_file(file_in, file_out, file_null, options)
+    parse_file(file_in, file_out, options)
     return True
 
 
-def parse_ifndef(line, file_in, file_out, file_null, options):
+def parse_ifndef(line, file_in, file_out, options):
     """ parse "ifndef" directive
 
     @param line: current line
     @param file_in: input file object
     @param file_out: output file object
-    @param file_null: null-device object
     @param options: options
     @return: processed #ifndef or not
     @raise: IOError
@@ -245,24 +250,24 @@ def parse_ifndef(line, file_in, file_out, file_null, options):
         # no match
         return False
 
+    options["if_true"] = True
     symbol = m.group(1)
     if symbol in options["defined"]:
         # defined!
-        file_out = file_null
+        options["if_true"] = False
 
     # recursive call!
     options["depth_if"] += 1
-    parse_file(file_in, file_out, file_null, options)
+    parse_file(file_in, file_out, options)
     return True
 
 
-def parse_endif(line, file_in, file_out, file_null, options):
+def parse_endif(line, file_in, file_out, options):
     """ parse "endif" directive
 
     @param line: current line
     @param file_in: input file object
     @param file_out: output file object
-    @param file_null: null-device object
     @param options: options
     @raise: JsppError
     """
@@ -271,6 +276,7 @@ def parse_endif(line, file_in, file_out, file_null, options):
         # no match
         return False
 
+    options["if_true"] = None
     options["depth_if"] -= 1
     if options["depth_if"] < 0:
         # too many endif
